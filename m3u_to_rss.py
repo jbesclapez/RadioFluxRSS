@@ -15,22 +15,33 @@ class M3UToRSS:
         
         # Country code to flag URL mapping
         self.country_flags = {
-            'France': 'https://flagcdn.com/w320/fr.png',
-            'Belgium': 'https://flagcdn.com/w320/be.png',
-            'Switzerland': 'https://flagcdn.com/w320/ch.png',
-            'Luxembourg': 'https://flagcdn.com/w320/lu.png',
             'FR': 'https://flagcdn.com/w320/fr.png',
             'BE': 'https://flagcdn.com/w320/be.png',
             'CH': 'https://flagcdn.com/w320/ch.png',
-            'LU': 'https://flagcdn.com/w320/lu.png'
+            'LU': 'https://flagcdn.com/w320/lu.png',
+            'LY': 'https://flagcdn.com/w320/lu.png'  # LY is Luxembourg
         }
         
-    def get_station_logo(self, tvg_logo, tvg_country):
+    def get_station_logo(self, tvg_logo, tvg_country, name):
         """Get the appropriate logo for a station."""
-        if tvg_logo:
+        # First try to get the station's own logo
+        if tvg_logo and tvg_logo.strip():
             return tvg_logo
-        elif tvg_country and tvg_country in self.country_flags:
-            return self.country_flags[tvg_country]
+            
+        # If no station logo, try to get country flag
+        if tvg_country:
+            country_code = tvg_country.strip()
+            if country_code in self.country_flags:
+                return self.country_flags[country_code]
+                
+        # If still no logo, try to extract country from name
+        if name:
+            # Look for country codes in the name
+            for code in self.country_flags.keys():
+                if f"| {code}" in name:
+                    return self.country_flags[code]
+                    
+        # If all else fails, use default logo
         return self.default_logo
         
     def parse_m3u(self):
@@ -59,7 +70,8 @@ class M3UToRSS:
                     # Get the appropriate logo
                     logo = self.get_station_logo(
                         tvg_logo.group(1) if tvg_logo else None,
-                        tvg_country.group(1) if tvg_country else None
+                        tvg_country.group(1) if tvg_country else None,
+                        name
                     )
                     
                     current_station = {
@@ -99,7 +111,7 @@ class M3UToRSS:
         # Add channel image
         image = ET.SubElement(channel, 'image')
         image_url = ET.SubElement(image, 'url')
-        image_url.text = self.country_flags['France']  # Use French flag as channel image
+        image_url.text = self.country_flags['FR']  # Use French flag as channel image
         image_title = ET.SubElement(image, 'title')
         image_title.text = "French Radio Stations"
         image_link = ET.SubElement(image, 'link')
