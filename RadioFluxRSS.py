@@ -32,23 +32,56 @@ class FluxRadiosScraper:
             return None
     
     def extract_radio_links(self) -> List[str]:
-        """Extract all radio page links from the main page."""
-        soup = self.get_page_content(self.base_url)
-        if not soup:
-            return []
+        """Extract all radio page links from the main page and category pages."""
+        all_radio_links = []
+        pages_to_explore = [self.base_url]
+        explored_pages = set()
         
-        radio_links = []
+        # Also add known category pages from the website structure
+        category_pages = [
+            f"{self.base_url}p/flux-radios-belge.html",
+            f"{self.base_url}p/flux-radios-francaise.html", 
+            f"{self.base_url}p/flux-radio-suisse.html",
+            f"{self.base_url}p/flux-radios-quebecoise.html",
+            f"{self.base_url}p/flux-radios-dom-tom.html"
+        ]
+        pages_to_explore.extend(category_pages)
         
-        # Find all links that point to radio pages
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if 'flux-url-' in href and 'fluxradios.blogspot.com' in href:
+        while pages_to_explore:
+            current_url = pages_to_explore.pop(0)
+            if current_url in explored_pages:
+                continue
+                
+            explored_pages.add(current_url)
+            self.logger.info(f"Exploring page: {current_url}")
+            
+            soup = self.get_page_content(current_url)
+            if not soup:
+                continue
+            
+            # Find all links that point to radio pages or category pages
+            for link in soup.find_all('a', href=True):
+                href = link['href']
                 full_url = urljoin(self.base_url, href)
-                if full_url not in radio_links:
-                    radio_links.append(full_url)
+                
+                # Skip external links
+                if 'fluxradios.blogspot.com' not in full_url:
+                    continue
+                
+                # Individual radio pages (flux-url-RADIONAME)
+                if 'flux-url-' in href and not any(category in href for category in ['belgique', 'france', 'suisse', 'quebec', 'dom-tom', 'webradio']):
+                    if full_url not in all_radio_links:
+                        all_radio_links.append(full_url)
+                        self.logger.debug(f"Found radio page: {full_url}")
+                
+                # Category pages that might contain more radio links
+                elif any(pattern in href for pattern in ['flux-url-webradio', 'flux-radios-', 'p/flux-radio']):
+                    if full_url not in explored_pages and full_url not in pages_to_explore:
+                        pages_to_explore.append(full_url)
+                        self.logger.debug(f"Found category page to explore: {full_url}")
         
-        self.logger.info(f"Found {len(radio_links)} radio links")
-        return radio_links
+        self.logger.info(f"Found {len(all_radio_links)} total radio links from {len(explored_pages)} pages")
+        return all_radio_links
     
     def parse_stream_quality(self, stream_text: str) -> int:
         """Extract bitrate from stream description."""
@@ -96,6 +129,11 @@ class FluxRadiosScraper:
         """Extract radio information from individual radio page."""
         soup = self.get_page_content(radio_url)
         if not soup:
+            return None
+            
+        # Skip if this looks like a category page with multiple radios
+        if any(category in radio_url for category in ['webradio', 'flux-radios-', 'p/flux-radio']):
+            self.logger.debug(f"Skipping category page: {radio_url}")
             return None
         
         radio_info = {
@@ -146,12 +184,20 @@ class FluxRadiosScraper:
         streams = []
         content_text = soup.get_text()
         
-        # Look for various stream URL patterns
+        # Look for various stream URL patterns (including Infomaniak and other common streaming services)
         url_patterns = [
             r'http[s]?://[^\s<>"]+\.mp3[^\s<>"]*',
             r'http[s]?://[^\s<>"]+\.aac[^\s<>"]*',
-            r'http[s]?://[^\s<>"]+/[^\s<>"]*(?:stream|radio|live)[^\s<>"]*',
-            r'http[s]?://[^\s<>"]+:\d+[^\s<>"]*'
+            r'http[s]?://[^\s<>"]+\.m3u[^\s<>"]*',
+            r'http[s]?://[^\s<>"]+\.pls[^\s<>"]*',
+            r'http[s]?://[^\s<>"]+\.asx[^\s<>"]*',
+            r'http[s]?://[^\s<>"]+/[^\s<>"]*(?:stream|radio|live|broadcast)[^\s<>"]*',
+            r'http[s]?://[^\s<>"]+:\d+[^\s<>"]*',
+            r'http[s]?://[^\s<>"]*infomaniak[^\s<>"]+',
+            r'http[s]?://[^\s<>"]*\.ice\.[^\s<>"]+',
+            r'http[s]?://broadcast\.[^\s<>"]+',
+            r'http[s]?://statslive\.[^\s<>"]+',
+            r'http[s]?://[^\s<>"]+/playlist/[^\s<>"]+',
         ]
         
         found_urls = set()
@@ -192,6 +238,28 @@ class FluxRadiosScraper:
             radio_info['streams'] = streams  # Keep all for reference
         
         return radio_info
+    
+    def extract_category_radio_links(self, category_url: str) -> List[str]:
+        """Extract individual radio links from category pages."""
+        soup = self.get_page_content(category_url)
+        if not soup:
+            return []
+            
+        radio_links = []
+        
+        # Look for links within the page content
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            full_url = urljoin(self.base_url, href)
+            
+            # Individual radio pages only
+            if 'flux-url-' in href and 'fluxradios.blogspot.com' in full_url:
+                # Exclude category pages
+                if not any(category in href for category in ['belgique', 'france', 'suisse', 'quebec', 'dom-tom', 'webradio']):
+                    if full_url not in radio_links:
+                        radio_links.append(full_url)
+        
+        return radio_links
     
     def scrape_all_radios(self) -> List[Dict]:
         """Scrape all radio information."""
