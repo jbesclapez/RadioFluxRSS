@@ -10,6 +10,8 @@ class M3UToRSS:
         self.m3u_file = m3u_file
         self.stations = []
         self.output_dir = "radio_feeds"
+        # Default AntennaPod logo URL
+        self.default_logo = "https://raw.githubusercontent.com/AntennaPod/AntennaPod/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
         
     def parse_m3u(self):
         """Parse the M3U file and extract station information."""
@@ -36,7 +38,7 @@ class M3UToRSS:
                     current_station = {
                         'name': name,
                         'tvg_name': tvg_name.group(1) if tvg_name else '',
-                        'logo': tvg_logo.group(1) if tvg_logo else '',
+                        'logo': tvg_logo.group(1) if tvg_logo else self.default_logo,
                         'group': group.group(1) if group else '',
                         'url': ''
                     }
@@ -62,10 +64,19 @@ class M3UToRSS:
         description.text = "Collection of French radio stations for continuous streaming"
         
         link = ET.SubElement(channel, 'link')
-        link.text = "https://example.com/radio"  # Replace with your actual feed URL
+        link.text = "https://jbesclapez.github.io/RadioFluxRSS/"
         
         language = ET.SubElement(channel, 'language')
         language.text = 'fr'
+        
+        # Add channel image
+        image = ET.SubElement(channel, 'image')
+        image_url = ET.SubElement(image, 'url')
+        image_url.text = self.default_logo
+        image_title = ET.SubElement(image, 'title')
+        image_title.text = "French Radio Stations"
+        image_link = ET.SubElement(image, 'link')
+        image_link.text = "https://jbesclapez.github.io/RadioFluxRSS/"
         
         # Add all stations as episodes
         for station in self.stations:
@@ -92,6 +103,10 @@ class M3UToRSS:
             
             itunes_explicit = ET.SubElement(item, 'itunes:explicit')
             itunes_explicit.text = 'no'
+            
+            # Add itunes image
+            itunes_image = ET.SubElement(item, 'itunes:image')
+            itunes_image.set('href', station['logo'])
             
             enclosure = ET.SubElement(item, 'enclosure')
             enclosure.set('url', station['url'])
