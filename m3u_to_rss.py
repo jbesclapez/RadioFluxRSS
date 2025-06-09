@@ -13,6 +13,26 @@ class M3UToRSS:
         # Default AntennaPod logo URL
         self.default_logo = "https://raw.githubusercontent.com/AntennaPod/AntennaPod/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
         
+        # Country code to flag URL mapping
+        self.country_flags = {
+            'France': 'https://flagcdn.com/w320/fr.png',
+            'Belgium': 'https://flagcdn.com/w320/be.png',
+            'Switzerland': 'https://flagcdn.com/w320/ch.png',
+            'Luxembourg': 'https://flagcdn.com/w320/lu.png',
+            'FR': 'https://flagcdn.com/w320/fr.png',
+            'BE': 'https://flagcdn.com/w320/be.png',
+            'CH': 'https://flagcdn.com/w320/ch.png',
+            'LU': 'https://flagcdn.com/w320/lu.png'
+        }
+        
+    def get_station_logo(self, tvg_logo, tvg_country):
+        """Get the appropriate logo for a station."""
+        if tvg_logo:
+            return tvg_logo
+        elif tvg_country and tvg_country in self.country_flags:
+            return self.country_flags[tvg_country]
+        return self.default_logo
+        
     def parse_m3u(self):
         """Parse the M3U file and extract station information."""
         current_station = {}
@@ -33,12 +53,19 @@ class M3UToRSS:
                     # Extract attributes
                     tvg_name = re.search(r'tvg-name="([^"]*)"', attrs)
                     tvg_logo = re.search(r'tvg-logo="([^"]*)"', attrs)
+                    tvg_country = re.search(r'tvg-country="([^"]*)"', attrs)
                     group = re.search(r'group-title="([^"]*)"', attrs)
+                    
+                    # Get the appropriate logo
+                    logo = self.get_station_logo(
+                        tvg_logo.group(1) if tvg_logo else None,
+                        tvg_country.group(1) if tvg_country else None
+                    )
                     
                     current_station = {
                         'name': name,
                         'tvg_name': tvg_name.group(1) if tvg_name else '',
-                        'logo': tvg_logo.group(1) if tvg_logo else self.default_logo,
+                        'logo': logo,
                         'group': group.group(1) if group else '',
                         'url': ''
                     }
@@ -72,7 +99,7 @@ class M3UToRSS:
         # Add channel image
         image = ET.SubElement(channel, 'image')
         image_url = ET.SubElement(image, 'url')
-        image_url.text = self.default_logo
+        image_url.text = self.country_flags['France']  # Use French flag as channel image
         image_title = ET.SubElement(image, 'title')
         image_title.text = "French Radio Stations"
         image_link = ET.SubElement(image, 'link')
