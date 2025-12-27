@@ -1,0 +1,38 @@
+name: Generate RSS weekly
+
+on:
+  workflow_dispatch: # manual trigger
+  schedule:
+    - cron: "0 4 * * 1" # Mondays at 04:00 UTC
+
+permissions:
+  contents: write # required to push updated feed
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run converter
+        run: python m3u_to_rss.py
+
+      - name: Commit and push if feed changed
+        run: |
+          if git status --porcelain | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add radio_feeds/french_radio_stations.xml
+            git commit -m "chore: refresh radio feed"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
