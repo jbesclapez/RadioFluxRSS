@@ -1,5 +1,7 @@
 # M3U to RSS Converter for Radio Streams
 
+**AntennaPod feed URL:** `https://jbesclapez.github.io/RadioFluxRSS/radio_feeds/french_radio_stations.xml`
+
 This script converts M3U playlist files containing radio station streams into a single RSS feed compatible with AntennaPod.
 
 ## Features
