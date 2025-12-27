@@ -10,7 +10,34 @@ This script converts M3U playlist files containing radio station streams into a 
 - Preserves radio station metadata
 - Creates a unified feed with all stations as episodes
 - Compatible with AntennaPod for continuous streaming
+- **Automatic filtering** of incompatible HLS streams
 - Optimized for easy import and use
+
+## Stream Compatibility
+
+The script automatically filters out HLS streams that require CloudFront signed authentication tokens, as these are incompatible with AntennaPod/ExoPlayer.
+
+### Filtered Sources (incompatible)
+
+| Source | Reason |
+|--------|--------|
+| `live.m6radio.quortex.io` | M6 Radio HLS with signed CloudFront tokens |
+| `ft-cdn-oovh.hls.rtl2.fr` | RTL2 local HLS with signed tokens |
+| `ft-cdn-oovh.hls.funradio.fr` | Fun Radio HLS with signed tokens |
+
+### Supported Stream Types
+
+| Type | Example | Status |
+|------|---------|--------|
+| Direct Icecast/Shoutcast | `http://icecast.rtl2.fr/...` | ✅ Works |
+| Direct MP3/AAC | `https://...infomaniak.ch/...mp3` | ✅ Works |
+| Simple HLS | `https://europe2.lmn.fm/...m3u8` | ✅ Works |
+| Token-required HLS | `https://live.m6radio.quortex.io/...` | ❌ Filtered |
+
+### Current Statistics
+
+- **~2032 compatible stations** included in the feed
+- **~75 incompatible stations** automatically filtered out
 
 ## Requirements
 
