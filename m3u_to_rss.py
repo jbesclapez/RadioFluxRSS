@@ -22,6 +22,21 @@ class M3UToRSS:
             'LY': 'https://flagcdn.com/w320/lu.png'  # LY is Luxembourg
         }
         
+        # URLs that are incompatible with AntennaPod (HLS with CloudFront signed tokens)
+        # These require authentication tokens that AntennaPod/ExoPlayer cannot handle
+        self.incompatible_url_patterns = [
+            'live.m6radio.quortex.io',    # M6 Radio HLS with signed CloudFront tokens
+            'ft-cdn-oovh.hls.rtl2.fr',    # RTL2 HLS with signed tokens
+            'ft-cdn-oovh.hls.funradio.fr', # Fun Radio HLS with signed tokens
+        ]
+        
+    def is_incompatible_url(self, url):
+        """Check if a URL is known to be incompatible with AntennaPod."""
+        for pattern in self.incompatible_url_patterns:
+            if pattern in url:
+                return True
+        return False
+        
     def get_station_logo(self, tvg_logo, tvg_country, name):
         """Get the appropriate logo for a station."""
         # First try to get the station's own logo
@@ -117,8 +132,12 @@ class M3UToRSS:
         image_link = ET.SubElement(image, 'link')
         image_link.text = "https://jbesclapez.github.io/RadioFluxRSS/"
         
-        # Add all stations as episodes
+        # Add all stations as episodes (skip incompatible ones)
         for station in self.stations:
+            # Skip stations with URLs that don't work in AntennaPod
+            if self.is_incompatible_url(station['url']):
+                continue
+                
             item = ET.SubElement(channel, 'item')
             
             item_title = ET.SubElement(item, 'title')
@@ -163,6 +182,10 @@ class M3UToRSS:
         # Create output directory
         Path(self.output_dir).mkdir(exist_ok=True)
         
+        # Count incompatible stations before generating
+        incompatible_count = sum(1 for s in self.stations if self.is_incompatible_url(s['url']))
+        compatible_count = len(self.stations) - incompatible_count
+        
         # Generate and save RSS feed
         feed_file = os.path.join(self.output_dir, "french_radio_stations.xml")
         rss_content = self.create_single_rss_feed()
@@ -171,6 +194,12 @@ class M3UToRSS:
             f.write(rss_content)
         
         print(f"\nGenerated single RSS feed: {feed_file}")
+        print(f"\nStatistics:")
+        print(f"  - Total stations in M3U: {len(self.stations)}")
+        print(f"  - Compatible stations (included): {compatible_count}")
+        print(f"  - Incompatible stations (skipped): {incompatible_count}")
+        if incompatible_count > 0:
+            print(f"  - Note: Skipped HLS streams with CloudFront tokens (incompatible with AntennaPod)")
         print("\nTo use this feed in AntennaPod:")
         print("1. Host this XML file on a web server")
         print("2. In AntennaPod, go to 'Add Podcast'")
