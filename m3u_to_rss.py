@@ -149,7 +149,11 @@ class M3UToRSS:
             
             enclosure = ET.SubElement(item, 'enclosure')
             enclosure.set('url', station['url'])
-            enclosure.set('type', 'audio/mpeg')
+            # Use correct MIME type for HLS streams vs direct audio
+            if station['url'].endswith('.m3u8'):
+                enclosure.set('type', 'application/vnd.apple.mpegurl')
+            else:
+                enclosure.set('type', 'audio/mpeg')
             enclosure.set('length', '0')
         
         return minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
